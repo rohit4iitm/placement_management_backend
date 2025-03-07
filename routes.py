@@ -29,7 +29,7 @@ def student_login():
     if student:
         # Generate JWT token
         access_token = create_access_token(identity=student.student_id)
-        return jsonify({"access_token": access_token,"id": student.student_id, "message": "Login successful"}), 200
+        return jsonify({"access_token": access_token,"id": student.student_id, "message": "Login successful", "user_type":"student"}), 200
     return jsonify({"error": "Invalid credentials"}), 401
 
 @api.route('/students/<int:student_id>', methods=['GET'])
@@ -61,7 +61,7 @@ def admin_login():
     admin = admin_controller.login_admin(data['email'],data['password'])
     if admin:
         access_token = create_access_token(identity=admin.admin_id)
-        return jsonify({"access_token":access_token,"id":admin.admin_id, "message":"Login successful"}), 200
+        return jsonify({"access_token":access_token,"id":admin.admin_id, "message":"Login successful", "user_type":"admin"}), 200
     return jsonify({"error": "Invalid credentials"}), 401
 
 @api.route('/admin/<int:admin_id>', methods=['GET'])
@@ -85,7 +85,7 @@ def department_login():
     admin = department_controller.login_admin(data['email'],data['password'])
     if admin:
         access_token = create_access_token(identity=admin.department_admin_id)
-        return jsonify({"access_token":access_token,"id":admin.department_admin_id, "message":"Login successful"}), 200
+        return jsonify({"access_token":access_token,"id":admin.department_admin_id, "message":"Login successful", "user_type":"department"}), 200
     return jsonify({"error": "Invalid credentials"}), 401
 
 @api.route('/department/<int:admin_id>', methods=['GET'])
