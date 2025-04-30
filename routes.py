@@ -104,7 +104,7 @@ def create_company():
     company = company_controller.create_company(data)
     return jsonify({"company_id": company.company_id, "message": "Company created successfully"}), 201
 
-@api.route('/companies/<int:company_id>', methods=['GET', 'DELETE'])
+@api.route('/companies/<int:company_id>', methods=['GET', 'DELETE', 'PUT'])
 @jwt_required()
 def handle_company(company_id):
     if request.method == 'GET':
@@ -116,6 +116,13 @@ def handle_company(company_id):
     if request.method == 'DELETE':
         result, status_code = company_controller.delete_company(company_id)
         return jsonify(result), status_code
+    
+    if request.method == "PUT":
+        data = request.get_json()
+        company = company_controller.edit_company(company_id, data)
+        if company:
+            return jsonify(company.to_dict()),200
+        return jsonify({"error": "Company not found"}), 404
 
 
 @api.route('/companies', methods=['GET'])
@@ -136,8 +143,11 @@ def get_companies():
 def apply_job(student_id):
     data = request.get_json()
     job_application = job_application_controller.apply_for_job(student_id, data['company_id'])
-    return jsonify({"application_id": job_application.application_id, "status": "Application submitted"}), 201
-
+    if job_application is not None:
+        return jsonify({"application_id": job_application.application_id, "status": "Application submitted"}), 201
+    else:
+        return jsonify({"application_id": "N/A", "status":"Application could not be placed. You are already placed"}), 201
+    
 @api.route('/applications', methods=['GET'])
 @jwt_required()
 def get_applications():
@@ -168,7 +178,10 @@ def get_student_applications(student_id):
 def record_placement_route():
     data = request.get_json()
     placement = placement_controller.record_placement(data['student_id'], data['company_id'], data['offer_letter'])
-    return jsonify({"placement_id": placement.placement_id, "message": "Placement recorded"}), 201
+    if placement is not None:
+        return jsonify({"placement_id": placement.placement_id, "message": "Placement recorded"}), 201
+    else:
+        return jsonify({"placement_id": "N/A", "message":"Student is already placed"}), 301
 
 @api.route('/placements', methods=['GET'])
 @jwt_required()

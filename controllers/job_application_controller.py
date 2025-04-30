@@ -1,9 +1,13 @@
 # controllers/job_application_controller.py
 
+from models.student import Student
 from models.job_application import JobApplication
 from models import db
 
 def apply_for_job(student_id, company_id):
+    student = Student.query.get(student_id)
+    if student.status == "inactive":
+        return None
     job_application = JobApplication(
         student_id=student_id,
         company_id=company_id,

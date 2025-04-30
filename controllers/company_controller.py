@@ -23,7 +23,20 @@ def get_all_companies():
     return Company.query.all()
 
 def get_company(company_id):
-    return Company.query.filter(Company.company_id == company_id).first()
+    return Company.query.get(company_id)
+
+def edit_company(company_id, data):
+    company = Company.query.get(company_id)
+    recruitment_date = datetime.strptime(data['recruitment_date'], '%Y-%m-%d').date()
+    company.job_description = data['job_description']
+    company.recruitment_date = recruitment_date
+    company.company_name = data['company_name']
+    company.criteria = data['criteria']
+    company.eligibility = data['eligibility']
+    company.category = data['category']
+    db.session.add(company)
+    db.session.commit()
+    return company
 
 def delete_company(company_id):
     company = Company.query.filter(Company.company_id == company_id).first()
