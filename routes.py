@@ -9,9 +9,11 @@ from controllers import (
     password_change_history_controller,
     company_management_controller,
     admin_controller, 
-    department_controller
+    department_controller,
+    resume_controller
 )
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
+from models.resume import Resume, Education, Experience, Skill, Project, Certification
 
 api = Blueprint('api', __name__)
 
@@ -142,6 +144,10 @@ def get_companies():
 @jwt_required()
 def apply_job(student_id):
     data = request.get_json()
+    student_application = job_application_controller.get_student_applications(student_id=student_id)
+    for _ in student_application:
+        if _.company_id == data['company_id']:
+            return jsonify({"application_id":"N/A", "status":"Application already submitted"}), 201
     job_application = job_application_controller.apply_for_job(student_id, data['company_id'])
     if job_application is not None:
         return jsonify({"application_id": job_application.application_id, "status": "Application submitted"}), 201
@@ -263,4 +269,64 @@ def get_company_actions_for_company(company_id):
     actions = company_management_controller.get_company_actions(company_id)
     return jsonify([action.to_dict() for action in actions]), 200
 
+# Get all resumes
+@api.route('/resumes', methods=['GET'])
+def get_all_resumes():
+    resumes = resume_controller.get_resumes()
+    result = [resume.to_dict() for resume in resumes]
+    return jsonify(result)
 
+# Get a specific resume
+@api.route('/resumes/<int:resume_id>', methods=['GET'])
+def get_resume(resume_id):
+    resume = resume_controller.get_resume(resume_id)
+    
+    if resume is None:
+        return jsonify({"error": "Resume not found"}), 404
+    
+    result = resume.to_dict()
+    return jsonify(result)
+
+# Create a new resume
+@api.route('/resumes', methods=['POST'])
+def create_resume():
+    data = request.get_json()
+    
+    try:
+        resume = resume_controller.create_resume(data)
+        result = resume.to_dict()
+        return jsonify(result), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+# Update an existing resume
+@api.route('/resumes/<int:resume_id>', methods=['PUT'])
+def update_resume(resume_id):
+    data = request.json
+    
+    try:
+        resume = resume_controller.get_resume(resume_id)
+        
+        if resume is None:
+            return jsonify({"error": "Resume not found"}), 404
+        
+        resume = resume_controller.create_resume(data, resume)
+        
+        result = resume.to_dict()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+# Delete a resume
+@api.route('/resumes/<int:resume_id>', methods=['DELETE'])
+def delete_resume(resume_id):
+    
+    try:
+        resume = resume_controller.get_resume(resume_id)
+        
+        if resume is None:
+            return jsonify({"error": "Resume not found"}), 404
+        
+        return jsonify({"message": "Resume deleted successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
