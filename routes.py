@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from controllers import (
+    notification_controller,
     student_controller, 
     company_controller, 
     job_application_controller, 
@@ -31,7 +32,7 @@ def student_login():
     if student:
         # Generate JWT token
         access_token = create_access_token(identity=student.student_id)
-        return jsonify({"access_token": access_token,"id": student.student_id, "message": "Login successful", "user_type":"student"}), 200
+        return jsonify({"access_token": access_token,"id": student.student_id, "message": "Login successful", "user_type":"student", "user_name":student.name}), 200
     return jsonify({"error": "Invalid credentials"}), 401
 
 @api.route('/student/password_change/<int:student_id>', methods=['PUT'])
@@ -81,7 +82,7 @@ def admin_login():
     admin = admin_controller.login_admin(data['email'],data['password'])
     if admin:
         access_token = create_access_token(identity=admin.admin_id)
-        return jsonify({"access_token":access_token,"id":admin.admin_id, "message":"Login successful", "user_type":"admin"}), 200
+        return jsonify({"access_token":access_token,"id":admin.admin_id, "message":"Login successful", "user_type":"admin", "user_name":admin.name}), 200
     return jsonify({"error": "Invalid credentials"}), 401
 
 @api.route('/admin/password_change/<int:admin_id>', methods=['PUT'])
@@ -121,7 +122,7 @@ def department_login():
     admin = department_controller.login_admin(data['email'],data['password'])
     if admin:
         access_token = create_access_token(identity=admin.department_admin_id)
-        return jsonify({"access_token":access_token,"id":admin.department_admin_id, "message":"Login successful", "user_type":"department", "branch":admin.department}), 200
+        return jsonify({"access_token":access_token,"id":admin.department_admin_id, "message":"Login successful", "user_type":"department", "branch":admin.department, "user_name":admin.name}), 200
     return jsonify({"error": "Invalid credentials"}), 401
 
 @api.route('/department/password_change/<int:department_id>', methods=['PUT'])
@@ -261,6 +262,134 @@ def get_placement(placement_id):
     if placement:
         return jsonify(placement.to_dict()), 200
     return jsonify({"error": "Placement not found"}), 404
+
+# Notification Routes
+@api.route('/notification', methods=['POST'])
+@jwt_required()
+def create_notification():
+    """Create a new notification (admin only)"""
+    data = request.get_json()
+    
+    # Validate required fields
+    if not data.get('title') or not data.get('message'):
+        return jsonify({"error": "Title and message are required"}), 400
+    
+    notification = notification_controller.create_notification(data)
+    if notification is not None:
+        return jsonify({"message": "Notification created successfully", "notification": notification.to_dict()}), 201
+    else:
+        return jsonify({"message": "Notification could not be created", "notification": "N/A"}), 201
+
+@api.route('/notifications', methods=['GET'])
+@jwt_required()
+def get_all_notifications():
+    """Get all notifications (admin view with filtering options)"""
+    # Pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    # Filtering parameters
+    category = request.args.get('category')
+    is_active = request.args.get('is_active') 
+    result = notification_controller.get_all_notifications(page,per_page,category,is_active)
+    return jsonify(result), 200
+
+
+@api.route('/notification/<int:notification_id>', methods=['GET'])
+@jwt_required()
+def get_notification(notification_id):
+    """Get a specific notification by ID"""
+    notification = notification_controller.get_notification(notification_id)
+    return jsonify(notification.to_dict()), 200
+
+
+@api.route('/notifications/<int:notification_id>', methods=['PUT'])
+@jwt_required()
+def update_notification(notification_id):
+    """Update an existing notification (admin only)"""
+    data = request.get_json()
+    notification = notification_controller.update_notification(notification_id=notification_id, data=data) 
+    return jsonify({"message": "Notification updated successfully", "notification": notification.to_dict()}), 200
+
+
+@api.route('/notification/<int:notification_id>', methods=['DELETE'])
+@jwt_required()
+def delete_notification(notification_id):
+    """Delete a notification (admin only)"""
+    notification = notification_controller.get_notification(notification_id)
+    if notification is not None: 
+        delete = notification_controller.delete_notification(notification_id)
+    else:
+        jsonify({"message": "Couldn't find notification"}), 200
+    
+    return jsonify({"message": "Notification deleted successfully"}), 200
+
+
+# Student routes for consuming notifications
+@api.route('/notifications/student/<int:student_id>', methods=['GET'])
+@jwt_required()
+def get_student_notifications(student_id):
+    """Get notifications for the current student with filtering and pagination"""    
+    if not student_id:
+        return jsonify({"error": "Student ID not found in token"}), 400
+    
+    
+    # Pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    
+    # Filter parameters
+    unread_only = request.args.get('unread_only', 'false').lower() == 'true'
+    category = request.args.get('category')
+    
+    result = notification_controller.get_notification_student(page,per_page,unread_only,category,student_id)
+    
+    
+    return jsonify(result), 200
+
+
+@api.route('/notifications/<int:notification_id>/read', methods=['POST'])
+@jwt_required()
+def mark_notification_read(notification_id):
+    """Mark a notification as read by the current student"""
+    current_user = get_jwt_identity()
+    student_id = current_user
+    if not student_id:
+        return jsonify({"error": "Student ID not found in token"}), 400
+    
+    read_record = notification_controller.mark_notification_read(notification_id, student_id)
+    
+    return jsonify({"message": "Notification marked as read", "read_at": read_record.read_at.isoformat()}), 201
+
+
+@api.route('/notifications/read/all', methods=['POST'])
+@jwt_required()
+def mark_all_notifications_read():
+    """Mark all unread notifications as read for the current student"""
+    current_user = get_jwt_identity()
+    student_id = current_user
+    
+    if not student_id:
+        return jsonify({"error": "Student ID not found in token"}), 400
+    
+    count = notification_controller.mark_all_notifications_read(student_id)
+    
+    return jsonify({"message": f"{count} notifications marked as read"}), 200
+
+
+# Analytics endpoint for admins
+@api.route('/notifications/analytics', methods=['GET'])
+@jwt_required()
+def get_notification_analytics():
+    """Get analytics about notification reads (admin only)"""
+    # Check if user is admin
+    
+    notification_id = request.args.get('notification_id', type=int)
+    
+    result = notification_controller.get_notification_analytics(notification_id)
+    
+    return jsonify(result), 200
+
 
 # Policy Routes
 @api.route('/policies',methods=['POST'])

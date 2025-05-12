@@ -12,7 +12,8 @@ class Student(db.Model):
     branch = db.Column(db.String(50))
     section = db.Column(db.String(10))
     status = db.Column(db.String(20))
-
+    batch = db.Column(db.String(50))
+    prn = db.Column(db.String(8))
     def to_dict(self):
         return {
             'student_id': self.student_id,
@@ -21,5 +22,7 @@ class Student(db.Model):
             'course': self.course,
             'branch': self.branch,
             'section': self.section,
-            'status': self.status
+            'status': self.status,
+            'prn':self.prn,
+            'batch':self.batch
         }

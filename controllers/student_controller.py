@@ -13,6 +13,8 @@ def create_student(data):
         course=data['course'],
         branch=data['branch'],
         section=data['section'],
+        prn = data['prn'],
+        batch = data['batch'],
         status=data.get('status', 'active')
     )
     db.session.add(student)
@@ -47,6 +49,8 @@ def change_profile(data, student_id):
     if student:
         student.name = data['name']
         student.email = data['email']
+        student.batch = data['batch']
+        student.prn = data['prn']
         db.session.add(student)
         db.session.commit()
         return student
