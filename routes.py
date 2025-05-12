@@ -34,6 +34,14 @@ def student_login():
         return jsonify({"access_token": access_token,"id": student.student_id, "message": "Login successful", "user_type":"student"}), 200
     return jsonify({"error": "Invalid credentials"}), 401
 
+@api.route('/student/password_change/<int:student_id>', methods=['PUT'])
+def students_password_change(student_id):
+    data = request.get_json()
+    student = student_controller.change_password(data,student_id)
+    if student is not None:
+        return jsonify({"student_id":student.student_id, "message": "Password changes successfully"}), 201
+    return jsonify({"student_id":"N/A", "message":"Password change unsuccessful"}), 301                                                       
+
 @api.route('/students/<int:student_id>', methods=['GET'])
 @jwt_required()
 def get_student(student_id):
@@ -50,6 +58,16 @@ def get_total_students():
     for i in students:
         student_count+=1
     return jsonify({"student_count":student_count}),200
+
+@api.route('/student/profile/update/<int:student_id>', methods=['PUT'])
+def update_student(student_id):
+    data = request.get_json()
+    student = student_controller.change_profile(data,student_id)
+    if student is not None:
+        return jsonify({"student_id":student.student_id, "message": "Password changes successfully"}), 201
+    return jsonify({"student_id":"N/A", "message":"Password change unsuccessful"}), 301     
+    
+
 # Admin Routes 
 @api.route('/admin/register', methods=['POST'])
 def register_admin():
@@ -65,6 +83,22 @@ def admin_login():
         access_token = create_access_token(identity=admin.admin_id)
         return jsonify({"access_token":access_token,"id":admin.admin_id, "message":"Login successful", "user_type":"admin"}), 200
     return jsonify({"error": "Invalid credentials"}), 401
+
+@api.route('/admin/password_change/<int:admin_id>', methods=['PUT'])
+def admin_password_change(admin_id):
+    data = request.get_json()
+    admin = admin_controller.change_password(data,admin_id)
+    if admin is not None:
+        return jsonify({"admin_id":admin.admin_id, "message": "Password changes successfully"}), 201 
+    return jsonify({"admin_id":"N/A", "message":"Password change unsuccessful"}), 301
+
+@api.route('/admin/profile/update/<int:admin_id>', methods=['PUT'])
+def admin_profile_change(admin_id):
+    data = request.get_json()
+    admin = admin_controller.change_profile(data,admin_id)
+    if admin is not None:
+        return jsonify({"admin_id":admin.admin_id, "message": "Profile changes successfully"}), 201 
+    return jsonify({"admin_id":"N/A", "message":"Profile change unsuccessful"}), 301
 
 @api.route('/admin/<int:admin_id>', methods=['GET'])
 @jwt_required()
@@ -89,6 +123,22 @@ def department_login():
         access_token = create_access_token(identity=admin.department_admin_id)
         return jsonify({"access_token":access_token,"id":admin.department_admin_id, "message":"Login successful", "user_type":"department", "branch":admin.department}), 200
     return jsonify({"error": "Invalid credentials"}), 401
+
+@api.route('/department/password_change/<int:department_id>', methods=['PUT'])
+def department_password_change(department_id):
+    data = request.get_json()
+    department = department_controller.change_password(data,department_id)
+    if department is not None: 
+        return jsonify({"department_id":department.department_admin_id, "message":"Password changes successfully"}), 201 
+    return jsonify({"department_id":"N/A", "message":"Password change unsuccessful"}), 301
+
+@api.route('/department/profile/update/<int:department_id>', methods=['PUT'])
+def department_profile_change(department_id):
+    data = request.get_json()
+    department = department_controller.change_profile(data,department_id)
+    if department is not None:
+        return jsonify({"admin_id":department.department_admin_id, "message": "Profile changes successfully"}), 201 
+    return jsonify({"admin_id":"N/A", "message":"Profile change unsuccessful"}), 301
 
 @api.route('/department/<int:admin_id>', methods=['GET'])
 @jwt_required()

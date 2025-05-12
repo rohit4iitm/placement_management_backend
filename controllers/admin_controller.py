@@ -22,3 +22,24 @@ def login_admin(email, password):
 def get_admin(admin_id):
     return Admin.query.get(admin_id)
 
+def change_password(data, admin_id):
+    admin = Admin.query.get(admin_id)
+    if admin and check_password_hash(admin.password, data['password_current']):
+        password_hash = generate_password_hash(data['password'])
+        admin.password = password_hash
+        db.session.add(admin)
+        db.session.commit()
+        return admin
+    else:
+        return None
+
+def change_profile(data, admin_id):
+    admin = Admin.query.get(admin_id)
+    if admin:
+        admin.name = data['name']
+        admin.email = data['email']
+        db.session.add(admin)
+        db.session.commit()
+        return admin
+    else:
+        return None

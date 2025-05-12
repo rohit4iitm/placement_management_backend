@@ -30,3 +30,25 @@ def get_student(student_id):
 
 def get_all_student():
     return Student.query.all()
+
+def change_password(data, student_id):
+    student = Student.query.get(student_id)
+    if student and check_password_hash(student.password, data['password_current']):
+        password_hash = generate_password_hash(data['password'])
+        student.password = password_hash
+        db.session.add(student)
+        db.session.commit()
+        return student
+    else:
+        return None
+    
+def change_profile(data, student_id):
+    student = Student.query.get(student_id)
+    if student:
+        student.name = data['name']
+        student.email = data['email']
+        db.session.add(student)
+        db.session.commit()
+        return student
+    else:
+        return None

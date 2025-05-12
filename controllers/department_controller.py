@@ -23,3 +23,24 @@ def login_admin(email, password):
 def get_admin(admin_id):
     return DepartmentAdmin.query.get(admin_id)
 
+def change_password(data, department_id):
+    department = DepartmentAdmin.query.get(department_id)
+    if department and check_password_hash(department.password, data['password_current']):
+        password_hash = generate_password_hash(data['password'])
+        department.password = password_hash
+        db.session.add(department)
+        db.session.commit()
+        return department
+    else:
+        return None
+    
+def change_profile(data, department_id):
+    department = DepartmentAdmin.query.get(department_id)
+    if department:
+        department.name = data['name']
+        department.email = data['email']
+        db.session.add(department)
+        db.session.commit()
+        return department
+    else:
+        return None
