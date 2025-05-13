@@ -6,6 +6,7 @@ class Resume(db.Model):
     __tablename__ = 'resumes'
     
     id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.student_id'), nullable=False)
     name = db.Column(db.String(100))
     email = db.Column(db.String(100))
     phone = db.Column(db.String(20))
@@ -20,9 +21,13 @@ class Resume(db.Model):
     projects = db.relationship("Project", back_populates="resume", cascade="all, delete-orphan")
     certifications = db.relationship("Certification", back_populates="resume", cascade="all, delete-orphan")
     
+    # Relationship to student
+    student = db.relationship('Student', backref=db.backref('resumes', lazy=True))
+    
     def to_dict(self):
         return {
             'id': self.id,
+            'student_id': self.student_id,
             'name': self.name,
             'email': self.email,
             'phone': self.phone,

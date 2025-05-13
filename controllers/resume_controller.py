@@ -1,10 +1,11 @@
 from models.resume import Resume, Education, Experience, Skill, Project, Certification
 from models import db
-def create_resume(data, resume=None):
+def create_resume(data, student_id,resume=None):
     if resume is None:
         resume = Resume()
     
     # Set main resume attributes
+    resume.student_id = student_id
     resume.name = data.get('name')
     resume.email = data.get('email')
     resume.phone = data.get('phone')
@@ -83,4 +84,11 @@ def get_resumes():
 def get_resume(resume_id):
     return Resume.query.get(resume_id)
 
- 
+def get_student_resumes(student_id):
+    return Resume.query.filter_by(student_id=student_id).all()
+
+def delete_resume(resume_id):
+    resume = Resume.query.get(resume_id)
+    db.session.delete(resume)
+    db.session.commit()
+    return None

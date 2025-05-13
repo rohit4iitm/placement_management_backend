@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from controllers import (
+    internship_permission_controller,
     notification_controller,
     student_controller, 
     company_controller, 
@@ -17,6 +18,10 @@ from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identi
 from models.resume import Resume, Education, Experience, Skill, Project, Certification
 
 api = Blueprint('api', __name__)
+
+@api.route('/health_check', methods=['GET'])
+def health_check():
+    return jsonify({"message":"hello world!"})
 
 # Student Routes
 @api.route('/students/register', methods=['POST'])
@@ -65,7 +70,7 @@ def update_student(student_id):
     data = request.get_json()
     student = student_controller.change_profile(data,student_id)
     if student is not None:
-        return jsonify({"student_id":student.student_id, "message": "Password changes successfully"}), 201
+        return jsonify({"student_id":student.student_id, "message": "Profile changes successfully"}), 201
     return jsonify({"student_id":"N/A", "message":"Password change unsuccessful"}), 301     
     
 
@@ -195,11 +200,12 @@ def get_companies():
 @jwt_required()
 def apply_job(student_id):
     data = request.get_json()
+    print(data['resume_id'])
     student_application = job_application_controller.get_student_applications(student_id=student_id)
     for _ in student_application:
         if _.company_id == data['company_id']:
             return jsonify({"application_id":"N/A", "status":"Application already submitted"}), 201
-    job_application = job_application_controller.apply_for_job(student_id, data['company_id'])
+    job_application = job_application_controller.apply_for_job(student_id, data['company_id'], data['resume_id'])
     if job_application is not None:
         return jsonify({"application_id": job_application.application_id, "status": "Application submitted"}), 201
     else:
@@ -455,6 +461,13 @@ def get_all_resumes():
     result = [resume.to_dict() for resume in resumes]
     return jsonify(result)
 
+@api.route('/student/resumes/<int:student_id>', methods=['GET'])
+def get_student_resumes(student_id):
+    resumes = resume_controller.get_student_resumes(student_id)
+    result = [resume.to_dict() for resume in resumes]
+    print(result)
+    return jsonify(result)
+
 # Get a specific resume
 @api.route('/resumes/<int:resume_id>', methods=['GET'])
 def get_resume(resume_id):
@@ -468,11 +481,12 @@ def get_resume(resume_id):
 
 # Create a new resume
 @api.route('/resumes', methods=['POST'])
+@jwt_required()
 def create_resume():
     data = request.get_json()
-    
+    student_id = get_jwt_identity()
     try:
-        resume = resume_controller.create_resume(data)
+        resume = resume_controller.create_resume(data,student_id)
         result = resume.to_dict()
         return jsonify(result), 201
     except Exception as e:
@@ -489,11 +503,12 @@ def update_resume(resume_id):
         if resume is None:
             return jsonify({"error": "Resume not found"}), 404
         
-        resume = resume_controller.create_resume(data, resume)
+        resume = resume_controller.create_resume(data, resume.student_id)
         
         result = resume.to_dict()
         return jsonify(result)
     except Exception as e:
+        print(e)
         return jsonify({"error": str(e)}), 400
 
 # Delete a resume
@@ -505,7 +520,177 @@ def delete_resume(resume_id):
         
         if resume is None:
             return jsonify({"error": "Resume not found"}), 404
-        
+        resume = resume_controller.delete_resume(resume_id)
         return jsonify({"message": "Resume deleted successfully"})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+# Student endpoints
+@api.route('/student/internship/request', methods=['POST'])
+@jwt_required()
+def create_internship_request():
+    """Create a new internship permission request"""
+    current_user = get_jwt_identity()
+    
+    data = request.get_json()
+    data['student_id'] = current_user
+    
+    permission, message = internship_permission_controller.create_permission_request(data)
+    
+    if permission:
+        return jsonify({
+            "message": message,
+            "permission": permission.to_dict()
+        }), 201
+    else:
+        return jsonify({"error": message}), 400
+
+@api.route('/student/internship/requests', methods=['GET'])
+@jwt_required()
+def get_student_internship_requests():
+    """Get all internship requests for the current student"""
+    current_user = get_jwt_identity()
+    
+    
+    permissions = internship_permission_controller.get_student_permissions(current_user)
+    
+    return jsonify({
+        "permissions": [permission.to_dict() for permission in permissions]
+    }), 200
+
+@api.route('/student/internship/request/<int:permission_id>', methods=['PUT'])
+@jwt_required()
+def update_internship_request(permission_id):
+    """Update an internship request (student can only update pending requests)"""
+    current_user = get_jwt_identity()
+    
+    
+    data = request.get_json()
+    
+    permission, message = internship_permission_controller.update_permission_details(permission_id, data)
+    
+    if permission:
+        return jsonify({
+            "message": message,
+            "permission": permission.to_dict()
+        }), 200
+    else:
+        return jsonify({"error": message}), 400
+
+@api.route('/student/internship/request/<int:permission_id>', methods=['DELETE'])
+@jwt_required()
+def delete_internship_request(permission_id):
+    """Delete an internship request (student can only delete pending requests)"""
+    current_user = get_jwt_identity()
+   
+    
+    success, message = internship_permission_controller.delete_permission_request(
+        permission_id, current_user
+    )
+    
+    if success:
+        return jsonify({"message": message}), 200
+    else:
+        return jsonify({"error": message}), 400
+
+# Department admin endpoints
+@api.route('/department/internship/requests', methods=['GET'])
+@jwt_required()
+def get_department_internship_requests():
+    """Get all internship requests for the department"""
+    current_user = get_jwt_identity()
+    
+    
+    permissions = internship_permission_controller.get_department_permissions(current_user)
+    
+    return jsonify({
+        "permissions": [permission.to_dict() for permission in permissions]
+    }), 200
+
+@api.route('/department/internship/request/<int:permission_id>/status', methods=['PUT'])
+@jwt_required()
+def update_department_internship_status(permission_id):
+    """Update the status of an internship request (department admin)"""
+    current_user = get_jwt_identity()
+    
+    
+    data = request.get_json()
+    if 'status' not in data or data['status'] not in ['approved', 'rejected']:
+        return jsonify({"error": "Invalid status. Must be 'approved' or 'rejected'"}), 400
+    
+    updated_by = {
+        'role': 'department_admin',
+        'id': current_user
+    }
+    
+    permission, message = internship_permission_controller.update_permission_status(
+        permission_id, data['status'], updated_by
+    )
+    
+    if permission:
+        return jsonify({
+            "message": message,
+            "permission": permission.to_dict()
+        }), 200
+    else:
+        return jsonify({"error": message}), 400
+
+# Admin endpoints
+@api.route('/admin/internship/requests', methods=['GET'])
+@jwt_required()
+def get_all_internship_requests():
+    """Get all internship requests (admin only)"""
+    current_user = get_jwt_identity()
+    
+    
+    permissions = internship_permission_controller.get_all_permissions()
+    
+    return jsonify({
+        "permissions": [permission.to_dict() for permission in permissions]
+    }), 200
+
+@api.route('/admin/internship/request/<int:permission_id>/status', methods=['PUT'])
+@jwt_required()
+def update_admin_internship_status(permission_id):
+    """Update the status of an internship request (admin)"""
+    current_user = get_jwt_identity()
+    
+    
+    data = request.get_json()
+    if 'status' not in data or data['status'] not in ['approved', 'rejected']:
+        return jsonify({"error": "Invalid status. Must be 'approved' or 'rejected'"}), 400
+    
+    updated_by = {
+        'role': 'admin',
+        'id': current_user
+    }
+    
+    permission, message = internship_permission_controller.update_permission_status(
+        permission_id, data['status'], updated_by
+    )
+    
+    if permission:
+        return jsonify({
+            "message": message,
+            "permission": permission.to_dict()
+        }), 200
+    else:
+        return jsonify({"error": message}), 400
+
+# Common endpoint for viewing a specific permission request
+@api.route('/internship/request/<int:permission_id>', methods=['GET'])
+@jwt_required()
+def get_internship_request(permission_id):
+    """Get details of a specific internship request"""
+    current_user = get_jwt_identity()
+    
+    permission = internship_permission_controller.get_permission_by_id(permission_id)
+    
+    if not permission:
+        return jsonify({"error": "Permission request not found"}), 404
+    
+   
+    
+   
+    
+    return jsonify(permission.to_dict()), 200
